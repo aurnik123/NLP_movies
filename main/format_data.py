@@ -23,7 +23,8 @@ def init_db():
             fear int default 0,
             joy int default 0,
             sadness int default 0,
-            surprise int default 0
+            surprise int default 0,
+            origin_id int
         );
         drop view if exists Strongest_Emotions;
         create view Strongest_Emotions
@@ -83,22 +84,31 @@ def load_affective_data():
 
 # gives each person's label a weight of 25
 def load_potter_data(ignore_emotion_strength=False):
+    core_emotions = frozenset(('anger', 'disgust', 'fear', 'joy', 'sadness', 'surprise'))
+
+    emotion_map = {
+        '3': 'fear',
+        '4': 'joy',
+        '6': 'sadness',
+        '7': 'surprise'
+    }
+
     if ignore_emotion_strength:
-        directory = '../data/Potter/agree-sent'
+        directory = '../labeled_data/Potter/agree-sent'
         with conn:
             for filename in os.listdir(directory):
                 path = os.path.join(directory, filename)
                 with open(path) as f:
                     reader = csv.reader(f, delimiter='@', quotechar='|')
                     for row in reader:
-                        conn.execute('insert into Texts (data) values (?)', (row[2],))
-                        insert_id = conn.execute('select last_insert_rowid()').fetchone()[0]
-                        conn.execute('insert into Emotion_Text_Map (text_id, emotion_id) values (?, ?)',
-                                     (insert_id, row[1]))
                         if row[1] == '2':
-                            # add sentences marked with anger/disgust merged label into both emotions
-                            conn.execute('insert into Emotion_Text_Map (text_id, emotion_id) values (?, ?)',
-                                         (insert_id, 1))
+                            conn.execute(
+                                """insert into Texts (data, anger, disgust) values (?, 100, 100)""", (row[2],))
+                        else:
+                            emotion = emotion_map[row[1]]
+                            conn.execute(
+                                """insert into Texts (data, {}) values (?, 100)""".format(emotion), (row[2],))
+
     else:
         directory = '../labeled_data/Potter/emmood'
         emotion_dict = {
