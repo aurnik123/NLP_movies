@@ -37,8 +37,8 @@ def init_db():
                 when joy then 'joy'
                 when sadness then 'sadness'
                 when surprise then 'surprise'
-            end,
-            strongest_emotion
+            end as strongest_emotion,
+            strongest_emotion as strength, origin_id
           from (
         select max(anger, disgust, fear, joy, sadness, surprise) as strongest_emotion, * from texts
         );
@@ -55,7 +55,7 @@ def load_affective_data():
         # maps xml id to db id
         for child in root:
             with conn:
-                conn.execute('insert into Texts (data) values (?)', (child.text,))
+                conn.execute('insert into Texts (data, origin_id) values (?, 1)', (child.text,))
                 insert_id = conn.execute('select last_insert_rowid()').fetchone()[0]
                 text_dict[child.attrib['id']] = insert_id
 
@@ -67,7 +67,18 @@ def load_affective_data():
                 with conn:
                     for row in reader:
                         text_id = text_dict[row[0]]
-                        yield (row[1], row[2], row[3], row[4], row[5], row[6], text_id)
+                        total = 0.
+                        weights = []
+                        for i in xrange(1, 7):
+                            weight = int(row[i])
+                            total += weight
+                            weights.append(weight)
+                        if total != 0:
+                            for i in xrange(6):
+                                # normalize to measure relative strength/dominance of emotion
+                                weights[i] = int(round(weights[i] / total * 100))
+                        weights.append(text_id)
+                        yield (weights)
 
         with conn:
             conn.executemany("""update texts set anger = ?, disgust = ?, fear = ?, joy = ?, sadness = ?, surprise = ?
@@ -103,11 +114,13 @@ def load_potter_data(ignore_emotion_strength=False):
                     for row in reader:
                         if row[1] == '2':
                             conn.execute(
-                                """insert into Texts (data, anger, disgust) values (?, 100, 100)""", (row[2],))
+                                """insert into Texts (data, anger, disgust, origin_id) values (?, 100, 100, 2)""",
+                                (row[2],))
                         else:
                             emotion = emotion_map[row[1]]
                             conn.execute(
-                                """insert into Texts (data, {}) values (?, 100)""".format(emotion), (row[2],))
+                                """insert into Texts (data, origin_id, {}) values (?, 2, 100)""".format(emotion),
+                                (row[2],))
 
     else:
         directory = '../labeled_data/Potter/emmood'
@@ -145,12 +158,13 @@ def load_potter_data(ignore_emotion_strength=False):
                         emotion_strengths = process_emotion_labels([row[1], row[2]])
                         # don't insert sentence into database if only neutral emotion labeled
                         if emotion_strengths:
-                            conn.execute("""insert into Texts (data, anger, disgust, fear, joy, sadness, surprise)
-                                            values (?, ?, ?, ?, ?, ?, ?)""",
+                            conn.execute("""insert into Texts (data, anger, disgust, fear, joy, sadness, surprise, origin_id)
+                                            values (?, ?, ?, ?, ?, ?, ?, 2)""",
                                          (row[3], emotion_strengths[1], emotion_strengths[2], emotion_strengths[3],
                                           emotion_strengths[4], emotion_strengths[5], emotion_strengths[6]))
 
 
+# TODO: find out why plutchik data is so much smaller than it seems it should be
 def load_plutchik_data():
     # non-core emotions. Each list entry should contribute half the weight of an entry in core_emotions
     emotion_dict = {
@@ -212,8 +226,8 @@ def load_plutchik_data():
                     temp_dict[emotion] = int(round(temp_dict[emotion] * 100. / total))
                 for emotion in ('anger', 'disgust', 'fear', 'joy', 'sadness', 'surprise'):
                     arguments.append(temp_dict.get(emotion, 0))
-                conn.execute("""insert into Texts (data, anger, disgust, fear, joy, sadness, surprise)
-                                values (?, ?, ?, ?, ?, ?, ?)""", arguments)
+                conn.execute("""insert into Texts (data, anger, disgust, fear, joy, sadness, surprise, origin_id)
+                                values (?, ?, ?, ?, ?, ?, ?, 3)""", arguments)
 
 
 def load_tweets():
@@ -254,7 +268,8 @@ def load_tweets():
                     continue
                 # ignore sentences with encoding errors
                 try:
-                    conn.execute("""insert into Texts (data, {}) values (?, 100)""".format(emotion), (sentence,))
+                    conn.execute("""insert into Texts (data, {}, origin_id) values (?, 100, 4)""".format(emotion),
+                                 (sentence,))
                 except Exception:
                     pass
 
@@ -267,6 +282,5 @@ if __name__ == '__main__':
     load_potter_data()
     # various sentences (appear to be from stories?)
     load_plutchik_data()
-    # tweet data ignored for now since less likely to be useful for script analysis without additional processing
-    # (typos, content type mismatch, etc.)
-    # load_tweets()
+    # tweets
+    load_tweets()
