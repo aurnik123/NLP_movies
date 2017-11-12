@@ -16,16 +16,19 @@ def init_db():
         conn.executescript("""
         drop table if exists Texts;
         create table Texts  (
-            id integer primary key autoincrement,
+            id integer primary key autoincrement not null,
             data text,
-            anger int default 0,
-            disgust int default 0,
-            fear int default 0,
-            joy int default 0,
-            sadness int default 0,
-            surprise int default 0,
-            origin_id int
+            anger int default 0 not null,
+            disgust int default 0 not null,
+            fear int default 0 not null,
+            joy int default 0 not null,
+            sadness int default 0 not null,
+            surprise int default 0 not null,
+            origin_id int not null
         );
+        
+        create index if not exists texts_origin_id_idx on texts(origin_id);
+        
         drop view if exists Strongest_Emotions;
         create view Strongest_Emotions
         as
@@ -67,18 +70,7 @@ def load_affective_data():
                 with conn:
                     for row in reader:
                         text_id = text_dict[row[0]]
-                        total = 0.
-                        weights = []
-                        for i in xrange(1, 7):
-                            weight = int(row[i])
-                            total += weight
-                            weights.append(weight)
-                        if total != 0:
-                            for i in xrange(6):
-                                # normalize to measure relative strength/dominance of emotion
-                                weights[i] = int(round(weights[i] / total * 100))
-                        weights.append(text_id)
-                        yield (weights)
+                        yield (row[1], row[2], row[3], row[4], row[5], row[6], text_id)
 
         with conn:
             conn.executemany("""update texts set anger = ?, disgust = ?, fear = ?, joy = ?, sadness = ?, surprise = ?
@@ -95,8 +87,6 @@ def load_affective_data():
 
 # gives each person's label a weight of 25
 def load_potter_data(ignore_emotion_strength=False):
-    core_emotions = frozenset(('anger', 'disgust', 'fear', 'joy', 'sadness', 'surprise'))
-
     emotion_map = {
         '3': 'fear',
         '4': 'joy',
@@ -156,15 +146,12 @@ def load_potter_data(ignore_emotion_strength=False):
                     reader = csv.reader(f, delimiter='\t', quotechar='|')
                     for row in reader:
                         emotion_strengths = process_emotion_labels([row[1], row[2]])
-                        # don't insert sentence into database if only neutral emotion labeled
-                        if emotion_strengths:
-                            conn.execute("""insert into Texts (data, anger, disgust, fear, joy, sadness, surprise, origin_id)
-                                            values (?, ?, ?, ?, ?, ?, ?, 2)""",
-                                         (row[3], emotion_strengths[1], emotion_strengths[2], emotion_strengths[3],
-                                          emotion_strengths[4], emotion_strengths[5], emotion_strengths[6]))
+                        conn.execute("""insert into Texts (data, anger, disgust, fear, joy, sadness, surprise, origin_id)
+                                        values (?, ?, ?, ?, ?, ?, ?, 2)""",
+                                     (row[3], emotion_strengths[1], emotion_strengths[2], emotion_strengths[3],
+                                      emotion_strengths[4], emotion_strengths[5], emotion_strengths[6]))
 
 
-# TODO: find out why plutchik data is so much smaller than it seems it should be
 def load_plutchik_data():
     # non-core emotions. Each list entry should contribute half the weight of an entry in core_emotions
     emotion_dict = {
@@ -178,60 +165,40 @@ def load_plutchik_data():
         'aggression': ('anger',)
     }
 
-    sentence_emotions = {}
+    sentence_data = {}
 
-    sentence_id_map = {}
+    # TODO: reconsider point allocation for non_core emotions
+    def process_emotion(sentence, emotion):
+        if emotion in core_emotions:
+            sentence_data[sentence][0][emotion] += 2
+        elif emotion in emotion_dict:
+            for parent_emotion in emotion_dict[emotion]:
+                sentence_data[sentence][0][parent_emotion] += 1
+        sentence_data[sentence][1] += 2
 
-    def process_emotion(sentence_id, emotion):
-        if sentence_id in sentence_emotions:
-            if emotion in core_emotions:
-                sentence_emotions[sentence_id][emotion] += 2
-            elif emotion in emotion_dict:
-                for parent_emotion in emotion_dict[emotion]:
-                    sentence_emotions[sentence_id][parent_emotion] += 1
-            else:
-                # tracked to decrease confidence/weight of other emotions
-                sentence_emotions[sentence_id]['other'] += 2
-
-    # TODO: consider adding ambiguous/neutral as an emotion to the Texts table, so emotionless/neutral sentences don't get falsely classified as other things
-    # alternatively, just filter out classifications that are below a certain strength threshold
-
-    # NOTE: sentences not necessarily read in order, so need to keep track of idiom_id to match emotion classifications
+    # NOTE: sentences not necessarily read in order and no identifier provided is unique per sentence, so sentence_id dict mapping sentences to emotions needed
     with open('../labeled_data/CrowdFlower/plutchik-wheel-full-DFE.csv', 'rU') as f:
         reader = csv.reader(f)
         headers = reader.next()
         for row in reader:
             emotion = row[14].lower()
-            sentence_id = int(row[17])
             sentence = row[18]
-            if sentence_id not in sentence_emotions:
-                sentence_id_map[sentence_id] = sentence
-                sentence_emotions[sentence_id] = Counter()
-            process_emotion(sentence_id, emotion)
+            if sentence not in sentence_data:
+                sentence_data[sentence] = [Counter(), 0]
+            process_emotion(sentence, emotion)
 
     with conn:
-        for sentence_id, temp_dict in sentence_emotions.iteritems():
-            total = 0
-            strongest_emotion = None
-            max_strength = 0
+        for sentence, (temp_dict, max_points) in sentence_data.iteritems():
+            arguments = [sentence]
             for emotion, strength in temp_dict.iteritems():
-                total += strength
-                if strength > max_strength:
-                    strongest_emotion = emotion
-                    max_strength = strength
-            if strongest_emotion != 'other':
-                sentence = sentence_id_map[sentence_id]
-                arguments = [sentence]
-                for emotion, strength in temp_dict.iteritems():
-                    temp_dict[emotion] = int(round(temp_dict[emotion] * 100. / total))
-                for emotion in ('anger', 'disgust', 'fear', 'joy', 'sadness', 'surprise'):
-                    arguments.append(temp_dict.get(emotion, 0))
-                conn.execute("""insert into Texts (data, anger, disgust, fear, joy, sadness, surprise, origin_id)
-                                values (?, ?, ?, ?, ?, ?, ?, 3)""", arguments)
+                temp_dict[emotion] = int(round(temp_dict[emotion] * 100. / max_points))
+            for emotion in ('anger', 'disgust', 'fear', 'joy', 'sadness', 'surprise'):
+                arguments.append(temp_dict[emotion])
+            conn.execute("""insert into Texts (data, anger, disgust, fear, joy, sadness, surprise, origin_id)
+                            values (?, ?, ?, ?, ?, ?, ?, 3)""", arguments)
 
 
 def load_tweets():
-    # TODO: filter out words with @ signs before adding to sentence database (don't contribute to sentiment)
     def filter_sentence(sentence):
         sentence = sentence.split(' ')
         output_sentence = ''
