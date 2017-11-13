@@ -226,15 +226,19 @@ def load_tweets():
             reader = csv.reader(f)
             header = reader.next()
             for row in reader:
-                sentence = filter_sentence(row[3])
-                if row[1] in core_emotions:
-                    emotion = row[1]
-                elif row[1] in emotion_dict:
-                    emotion = emotion_dict[row[1]]
-                else:
-                    continue
-                # ignore sentences with encoding errors
                 try:
+                    sentence = filter_sentence(row[3])
+                    if row[1] in core_emotions:
+                        emotion = row[1]
+
+                    elif row[1] in emotion_dict:
+                        emotion = emotion_dict[row[1]]
+
+                    else:
+                        # emotion isn't 1 of the 6 core emotions
+                        conn.execute("""insert into Texts (data, origin_id) values (?, 4)""", (sentence,))
+                        continue
+                    # ignore sentences with encoding errors
                     conn.execute("""insert into Texts (data, {}, origin_id) values (?, 100, 4)""".format(emotion),
                                  (sentence,))
                 except Exception:

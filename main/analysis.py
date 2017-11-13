@@ -11,6 +11,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.multioutput import MultiOutputRegressor
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LogisticRegression
+from sklearn.neural_network import MLPRegressor
+from sklearn.externals import joblib
 
 import math
 
@@ -31,10 +33,7 @@ def get_data():
 
 
 def tokenize(text):
-    tokens = nltk.word_tokenize(str(text).lower().translate(None, string.punctuation))
-    for i, token in enumerate(tokens):
-        tokens[i] = stemmer.stem(token)
-    return tokens
+    return map(stemmer.stem, nltk.word_tokenize(str(text).lower().translate(None, string.punctuation)))
 
 
 # calculates mse
@@ -52,6 +51,9 @@ if __name__ == '__main__':
 
     model = MultiOutputRegressor(RandomForestRegressor())
     model.fit(X=X_train, y=y_train)
+    joblib.dump(model, 'model.pkl')
+    # model = joblib.load('untuned_neural_net.pkl')
+
     print(model.score(X_test, y_test))
 
     y_pred = model.predict(X_test)
