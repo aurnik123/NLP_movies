@@ -22,9 +22,10 @@ def init_db():
 
         drop view if exists Scene_View;
         create view Scene_View as 
-            select film_id, name as film_name, data
+            select film_id, name as film_name, Scenes.id as scene_id, data
             from Films inner join Scenes
-            on Films.id = Scenes.film_id;
+            on Films.id = Scenes.film_id
+            order by film_id, scene_id;
         """)
 
 
