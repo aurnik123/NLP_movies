@@ -21,7 +21,7 @@ def init_db():
         );
 
         drop view if exists Scene_View;
-        create view Scene_View as 
+        create view Scene_View as
             select film_id, name as film_name, Scenes.id as scene_id, data
             from Films inner join Scenes
             on Films.id = Scenes.film_id
@@ -54,7 +54,7 @@ def load_script(filepath):
                     scene = re.sub('CONT.+\s', ' ', scene)
                     scene = re.sub('OMIT.+\s', ' ', scene)
                     scene = re.sub("\s\s+", " ", scene)  # remove double spaces
-                    print(scene)
+                    #print(scene)
                     conn.execute("""insert into Scenes (film_id, data) values (?, ?)""", (film_id, scene))
 
                 sceneNum += 1
@@ -67,7 +67,7 @@ def load_script(filepath):
 
                 scene = scene + line
 
-        scene = re.sub('([tT]?[Hh]?[Ee]?\s?[Ee][Nn][Dd])(.|\n)*', '', scene)
+        scene = re.sub('\n\s*([tT][Hh][Ee]\s[Ee][Nn][Dd])(.|\n)*', ' ', scene)
         scene = re.sub('\n\s*[A-Z0-9()][^a-z]*[A-Z0-9():]+.?\s*\n', ' ',
                        scene)  # deal with scene numbers and camera direction
         scene = re.sub('[A-Z]?[0-9][^a-z\s]*', ' ', scene)
@@ -75,7 +75,7 @@ def load_script(filepath):
         scene = re.sub('CONT.+\s', ' ', scene)
         scene = re.sub('OMIT.+\s', ' ', scene)
         scene = re.sub("\s\s+", " ", scene)  # remove double spaces
-        # print(scene)
+        print(scene)
         conn.execute("""insert into Scenes (film_id, data) values (?, ?)""", (film_id, scene))
 
         count += 1
