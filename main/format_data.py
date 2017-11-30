@@ -6,7 +6,6 @@ from collections import Counter
 
 import numpy as np
 
-# TODO: keep an eye on removed neutral from both lists and change in position to end of list in table creation
 # TODO: consider consolidating 'neutral', 'empty', and 'ambiguous'
 core_emotions = ('anger', 'disgust', 'fear', 'joy', 'sadness', 'surprise')
 all_emotions = ('anger', 'disgust', 'fear', 'joy', 'sadness', 'surprise', 'awe', 'optimism', 'ambiguous',
@@ -87,7 +86,6 @@ class Data:
             clazz(self.emotions, self.include_neutral).load()
 
 
-# TODO: convert to percents to match other datasets
 # headline data
 # emotions = core_emotions
 class AffectiveData(Data):
@@ -123,8 +121,6 @@ class AffectiveData(Data):
                             # neutral emotion not possible in core emotions
                             if self.include_neutral:
                                 self.conn.execute('update texts set neutral = 100 where id = ?', (text_id,))
-                            else:
-                                continue
                         else:
                             # converts strengths to relative strengths (out of 100)
                             output_row = np.array(output_row) * 100 / sum(output_row)
