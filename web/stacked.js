@@ -7,12 +7,12 @@ function makeGraph(path){
 
   var x = d3.scaleLinear().range([0, width]),
       y = d3.scaleLinear().range([height, 0]),
-      z = d3.scaleOrdinal(d3.schemeCategory10);
+      z = d3.scaleOrdinal(["#e41a1c","#4daf4a","#984ea3","#ffff33","#377eb8","#ff7f00","white"]);
 
   var stack = d3.stack();
   var sceneMax = 1;
   var area = d3.area()
-      .x(function(d, i) { console.log((sceneMax));return x((d.data.scene-1)/sceneMax); })
+      .x(function(d, i) { return x((d.data.scene-1)/sceneMax); })
       .y0(function(d) { return y(d[0]); })
       .y1(function(d) { return y(d[1]); });
 
@@ -27,6 +27,7 @@ function makeGraph(path){
       z.domain(keys);
       stack.keys(keys);
 
+
       var layer = g.selectAll(".layer")
         .data(stack(data))
         .enter().append("g")
@@ -37,14 +38,14 @@ function makeGraph(path){
           .style("fill", function(d) { return z(d.key); })
           .attr("d", area);
 
-      layer.filter(function(d) { return d[d.length - 1][1] - d[d.length - 1][0] > 0.01; })
+      /*layer.filter(function(d) { return d[d.length - 1][1] - d[d.length - 1][0] > 0.01; })
         .append("text")
           .attr("x", width - 6)
           .attr("y", function(d) { return y((d[d.length - 1][0] + d[d.length - 1][1]) / 2); })
           .attr("dy", ".35em")
           .style("font", "10px sans-serif")
           .style("text-anchor", "end")
-          .text(function(d) { return d.key; });
+          .text(function(d) { return d.key; });*/
 
       g.append("g")
           .attr("class", "axis axis--x")
@@ -75,4 +76,4 @@ function norm(d, i, columns) {
   return d;
 }
 //call makeGraph(csvfilepath) externally with whateever your formatted data values are
-makeGraph("../film_sentiment_predictions/Catwoman.csv");
+makeGraph("../film_sentiment_predictions/Boyhood.csv");
