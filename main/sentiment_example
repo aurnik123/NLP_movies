@@ -1,5 +1,0 @@
-from textblob import TextBlob
-
-wiki = TextBlob("This is a test sentence, it should be relatively neutral.")
-print(wiki.sentiment.polarity)
-print(wiki.sentiment.subjectivity)

@@ -4,16 +4,16 @@ import string
 
 import nltk
 import numpy as np
-from nltk.stem.porter import PorterStemmer
 import scipy.sparse as sp
+from nltk.stem.porter import PorterStemmer
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.externals import joblib
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import SGDClassifier
 from sklearn.metrics import classification_report
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import train_test_split
 from sklearn.multioutput import MultiOutputRegressor
-from sklearn.linear_model import SGDClassifier
 from textblob import TextBlob
 
 stemmer = PorterStemmer()
@@ -45,7 +45,7 @@ class Driver:
         with self.conn as conn:
             if self.method == 'regression':
                 results = conn.execute(
-                    'select data, anger, disgust, fear, joy, sadness, surprise from texts where origin_id = 3')
+                    'select data, anger, disgust, fear, joy, sadness, surprise from texts where origin_id = 3 and strength > 70')
                 text_data, y = [], []
                 for row in results:
                     text_data.append(str(row[0]))
@@ -53,7 +53,7 @@ class Driver:
                 return np.array(text_data), np.array(y)
             else:
                 results = conn.execute(
-                    'select data, strongest_emotion from strongest_emotions where origin_id = 3'
+                    "select data, strongest_emotion from strongest_emotions where origin_id = 3 and strength > 50"
                 )
                 text_data, y = [], []
                 for row in results:
@@ -102,20 +102,20 @@ class Driver:
         else:
             # best so far: huber, log, epsilon_insensitive
             # elasticnet
-            model = SGDClassifier(loss='hinge', penalty='elasticnet', max_iter=50)
+            model = SGDClassifier(loss='hinge', penalty='l2', max_iter=50)
             model.fit(X=X_train, y=y_train)
 
             joblib.dump(model, 'model.pkl')
 
-            print(model.get_params)
-
-            pred = model.predict(X_test)
-            for i in xrange(X_test.shape[0]):
-                print(self.data[0][idx_test[i]], pred[i], y_test[i])
-
-            print(model.score(X_test, y_test))
-            # print(cross_val_score(model, X, y, cv=5))
+            # print(model.get_params)
+            #
+            # pred = model.predict(X_test)
+            # for i in xrange(X_test.shape[0]):
+            #     print(self.data[0][idx_test[i]], pred[i], y_test[i])
+            #
+            # print(model.score(X_test, y_test))
+            print(cross_val_score(model, X, y, cv=5))
 
 
 if __name__ == '__main__':
-    Driver(method='classification', emotions='all', use_external_sentiment=False).analyze()
+    Driver(method='classification', emotions='core', use_external_sentiment=False).analyze()

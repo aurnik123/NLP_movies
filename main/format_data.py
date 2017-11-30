@@ -6,18 +6,22 @@ from collections import Counter
 
 import numpy as np
 
+# TODO: keep an eye on removed neutral from both lists and change in position to end of list in table creation
 # TODO: consider consolidating 'neutral', 'empty', and 'ambiguous'
 core_emotions = ('anger', 'disgust', 'fear', 'joy', 'sadness', 'surprise')
-all_emotions = ('anger', 'disgust', 'fear', 'joy', 'sadness', 'surprise', 'neutral', 'awe', 'optimism', 'ambiguous',
+all_emotions = ('anger', 'disgust', 'fear', 'joy', 'sadness', 'surprise', 'awe', 'optimism', 'ambiguous',
                 'love', 'submission', 'anticipation', 'contempt', 'trust', 'aggression', 'disapproval', 'remorse',
                 'relief', 'empty', 'fun', 'enthusiasm', 'hate', 'worry', 'boredom')
 
 
-def init_db(emotions='core'):
+def init_db(emotions='core', include_neutral=True):
     if emotions == 'core':
         emotion_list = core_emotions
     else:
         emotion_list = all_emotions
+
+    if include_neutral:
+        emotion_list += ('neutral',)
 
     db_name = Data.get_db_name(emotions)
     conn = sqlite3.connect(db_name)
@@ -25,7 +29,7 @@ def init_db(emotions='core'):
     # db schema:
     # (Table) Texts = (id int, data text, emotion numeric, origin_id int) for all emotions
     # emotions = core_emotions if emotions = 'core', all_emotions otherwise
-    # origin_id: 1 = Affective, 2 = Potter, 3 = Plutchik, 4 = Tweet
+    # origin_id: 1 = Affective (headlines), 2 = Potter (storybook/fairy tales), 3 = Plutchik (text), 4 = Tweet
     # (View) Strongest_Emotions = (data_id int, data text, strongest_emotion text, strength numeric, origin_id int)
     with conn:
         query = """
@@ -66,8 +70,9 @@ def init_db(emotions='core'):
 
 
 class Data:
-    def __init__(self, emotions='core'):
+    def __init__(self, emotions='core', include_neutral=True):
         self.emotions = emotions
+        self.include_neutral = include_neutral
         self.db = self.get_db_name(emotions)
         self.conn = sqlite3.connect(self.db)
 
@@ -79,7 +84,7 @@ class Data:
         init_db(self.emotions)
         class_list = [AffectiveData, PotterData, PlutchikData, TweetData]
         for clazz in class_list:
-            clazz(self.emotions).load()
+            clazz(self.emotions, self.include_neutral).load()
 
 
 # TODO: convert to percents to match other datasets
@@ -88,9 +93,10 @@ class Data:
 class AffectiveData(Data):
     emotion_order = ('anger', 'disgust', 'fear', 'joy', 'sadness', 'surprise')
 
-    def __init__(self, emotions='core'):
-        Data.__init__(self, emotions)
+    def __init__(self, emotions='core', include_neutral=True, strength_threshold=50):
+        Data.__init__(self, emotions, include_neutral)
         self.text_dict = {}
+        self.strength_threshold = strength_threshold
 
     def _load_xml(self, filepath):
         tree = ET.parse(filepath)
@@ -110,17 +116,18 @@ class AffectiveData(Data):
                 with self.conn:
                     for row in reader:
                         text_id = self.text_dict[row[0]]
+                        output_row = map(float, row[1:7])
 
-                        # converts strengths to relative strengths (out of 100)
-                        output_row = np.array(map(float, row[1:7]))
-                        if sum(output_row) == 0:
+                        # if strongest emotion weaker than threshold, include as neutral (or don't include if neutral invalid)
+                        if max(output_row) < self.strength_threshold:
                             # neutral emotion not possible in core emotions
-                            if self.emotions == 'core':
-                                yield np.append(output_row, text_id)
-                            else:
+                            if self.include_neutral:
                                 self.conn.execute('update texts set neutral = 100 where id = ?', (text_id,))
+                            else:
+                                continue
                         else:
-                            output_row = output_row * 100 / sum(output_row)
+                            # converts strengths to relative strengths (out of 100)
+                            output_row = np.array(output_row) * 100 / sum(output_row)
                             output_row = np.append(output_row, text_id)
                             yield output_row
 
@@ -166,8 +173,8 @@ class PotterData(Data):
                     'love', 'submission', 'anticipation', 'contempt', 'trust', 'aggression', 'disapproval', 'remorse',
                     'relief', 'empty', 'fun', 'enthusiasm', 'hate', 'worry', 'boredom')
 
-    def __init__(self, emotions='core'):
-        Data.__init__(self, emotions)
+    def __init__(self, emotions='core', include_neutral=True):
+        Data.__init__(self, emotions, include_neutral)
 
     def _process_emotion_labels(self, labels):
         emotion_strengths = Counter()
@@ -188,29 +195,22 @@ class PotterData(Data):
                     for row in reader:
                         yield row
 
-    def _load_emotions_core(self):
-        for row in self._get_file_rows():
-            emotion_strengths = self._process_emotion_labels([row[1], row[2]])
-            self.conn.execute("""insert into Texts (data, anger, disgust, fear, joy, sadness, surprise, origin_id)
-                                                        values (?, ?, ?, ?, ?, ?, ?, 2)""",
-                              (row[3], emotion_strengths[1], emotion_strengths[2], emotion_strengths[3],
-                               emotion_strengths[4], emotion_strengths[5], emotion_strengths[6]))
-
-    # addition of "Neutral" emotion
-    def _load_emotions_all(self):
-        for row in self._get_file_rows():
-            emotion_strengths = self._process_emotion_labels([row[1], row[2]])
-            self.conn.execute("""insert into Texts (data, anger, disgust, fear, joy, sadness, surprise, neutral, origin_id)
-                                                        values (?, ?, ?, ?, ?, ?, ?, ?, 2)""",
-                              (row[3], emotion_strengths[1], emotion_strengths[2], emotion_strengths[3],
-                               emotion_strengths[4], emotion_strengths[5], emotion_strengths[6], emotion_strengths[7]))
-
     def load(self):
         # core and full emotions almost same for dataset (with addition of "neutral")
-        if self.emotions == 'core':
-            self._load_emotions_core()
-        else:
-            self._load_emotions_all()
+        for row in self._get_file_rows():
+            emotion_strengths = self._process_emotion_labels([row[1], row[2]])
+
+            query = 'insert into Texts (data, anger, disgust, fear, joy, sadness, surprise, origin_id'
+
+            if self.include_neutral:
+                query += ', neutral) values (?, ?, ?, ?, ?, ?, ?, 2, ?)'
+                self.conn.execute(query, (row[3], emotion_strengths[1], emotion_strengths[2], emotion_strengths[3],
+                                          emotion_strengths[4], emotion_strengths[5], emotion_strengths[6],
+                                          emotion_strengths[7]))
+            else:
+                query += ') values (?, ?, ?, ?, ?, ?, ?, ?, 2)'
+                self.conn.execute(query, (row[3], emotion_strengths[1], emotion_strengths[2], emotion_strengths[3],
+                                          emotion_strengths[4], emotion_strengths[5], emotion_strengths[6]))
 
 
 # sentences from text
@@ -229,14 +229,14 @@ class PlutchikData(Data):
         'aggression': ('anger',)
     }
 
-    def __init__(self, emotions='core'):
-        Data.__init__(self, emotions)
+    def __init__(self, emotions='core', include_neutral=True):
+        Data.__init__(self, emotions, include_neutral)
         self.sentence_data = {}
 
     def _load_emotions_core(self):
         # TODO: reconsider point allocation for non_core emotions
         def process_emotion(sentence, emotion):
-            if emotion in core_emotions:
+            if emotion in core_emotions or (self.include_neutral and emotion == 'neutral'):
                 self.sentence_data[sentence][0][emotion] += 2
             elif emotion in self.emotion_dict:
                 for parent_emotion in self.emotion_dict[emotion]:
@@ -259,9 +259,15 @@ class PlutchikData(Data):
                 arguments = [sentence]
                 for emotion, strength in temp_dict.iteritems():
                     temp_dict[emotion] = temp_dict[emotion] * 100. / max_points
-                for emotion in ('anger', 'disgust', 'fear', 'joy', 'sadness', 'surprise'):
+                for emotion in core_emotions:
                     arguments.append(temp_dict[emotion])
-                self.conn.execute("""insert into Texts (data, anger, disgust, fear, joy, sadness, surprise, origin_id)
+                if self.include_neutral:
+                    arguments.append(temp_dict['neutral'])
+                    self.conn.execute("""insert into Texts 
+                                        (data, anger, disgust, fear, joy, sadness, surprise, origin_id, neutral)
+                                        values (?, ?, ?, ?, ?, ?, ?, 3, ?)""", arguments)
+                else:
+                    self.conn.execute("""insert into Texts (data, anger, disgust, fear, joy, sadness, surprise, origin_id)
                                            values (?, ?, ?, ?, ?, ?, ?, 3)""", arguments)
 
     def _load_emotions_all(self):
@@ -289,14 +295,20 @@ class PlutchikData(Data):
                 for emotion, strength in temp_dict.iteritems():
                     temp_dict[emotion] = temp_dict[emotion] * 100. / max_points
                 for emotion in all_emotions:
-                    if emotion in temp_dict:
+                    if emotion != 'ambiguous' and emotion in temp_dict:
                         arguments.append(str(temp_dict[emotion]))
                         emotion_order.append(emotion)
-                query_columns = ','.join(emotion_order)
-                query_values = ','.join(arguments)
-                query = 'insert into Texts (data, {}, origin_id) values (?, {}, 3)'.format(query_columns,
-                                                                                           query_values)
-                self.conn.execute(query, (sentence,))
+                if self.include_neutral:
+                    arguments.append(str(temp_dict['neutral']))
+                    emotion_order.append('neutral')
+
+                # inserts only if there are emotions to insert
+                if emotion_order:
+                    query_columns = ','.join(emotion_order)
+                    query_values = ','.join(arguments)
+                    query = 'insert into Texts (data, {}, origin_id) values (?, {}, 3)'.format(query_columns,
+                                                                                               query_values)
+                    self.conn.execute(query, (sentence,))
 
     def load(self):
         if self.emotions == 'core':
@@ -321,8 +333,8 @@ class TweetData(Data):
         'boredom': 'disgust'
     }
 
-    def __init__(self, emotions='core'):
-        Data.__init__(self, emotions)
+    def __init__(self, emotions='core', include_neutral=True):
+        Data.__init__(self, emotions, include_neutral)
 
     def _filter_sentence(self, sentence):
         sentence = sentence.split(' ')
@@ -343,7 +355,7 @@ class TweetData(Data):
     def _process_row(self, row):
         sentence = self._filter_sentence(row[3])
         if self.emotions == 'core':
-            if row[1] in core_emotions:
+            if row[1] in core_emotions or (self.include_neutral and row[1] == 'neutral'):
                 emotion = row[1]
             elif row[1] in self.emotion_dict:
                 emotion = self.emotion_dict[row[1]]
@@ -351,12 +363,11 @@ class TweetData(Data):
                 # emotion isn't 1 of the 6 core emotions and can't be mapped into core emotions
                 self.conn.execute("""insert into Texts (data, origin_id) values (?, 4)""", (sentence,))
                 return
-
         else:
             # only emotion equivalency is converted
             if row[1] == 'happiness':
                 emotion = 'joy'
-            else:
+            elif row[1] != 'neutral' or (self.include_neutral and row[1] == 'neutral'):
                 emotion = row[1]
 
         # ignore sentences with encoding errors
@@ -374,4 +385,4 @@ class TweetData(Data):
 
 
 if __name__ == '__main__':
-    Data(emotions='all').load_all()
+    Data(emotions='core', include_neutral=True).load_all()
