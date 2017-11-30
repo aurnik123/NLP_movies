@@ -115,10 +115,13 @@ class Driver:
     def analyze_scripts(self, film_name=None):
 
         if self.emotions == 'core':
-            emotion_headers = core_emotions
+            emotion_order = core_emotions
         else:
-            emotion_headers = all_emotions
+            emotion_order = all_emotions
 
+        emotion_order += ('neutral',)
+
+        headers = ('scene',) + emotion_order
         # NOTE: joins would probably be faster but a bit harder to parse afterwards
         with sqlite3.connect('movies.sqlite3') as conn:
             if film_name:
@@ -135,11 +138,13 @@ class Driver:
 
                 with open(filepath, 'wb') as csvfile:
                     writer = csv.writer(csvfile, quotechar='|', quoting=csv.QUOTE_MINIMAL)
-                    writer.writerow(emotion_headers)
+                    writer.writerow(headers)
 
-                    scene_rows = conn.execute('select id from scenes where film_id = ? order by scene_num', (film_id,))
+                    scene_rows = conn.execute('select id, scene_num from scenes where film_id = ? order by scene_num',
+                                              (film_id,))
                     for scene_row in scene_rows:
                         scene_id = scene_row[0]
+                        scene_num = scene_row[1]
                         sentence_rows = conn.execute('select data from sentences where scene_id = ? order by sentence_num',
                                                      (scene_id,))
 
@@ -152,11 +157,11 @@ class Driver:
                             num_sentences += 1
 
                         if num_sentences > 0:
-                            emotion_strengths = []
-                            for emotion in emotion_headers:
-                                emotion_strengths.append(emotion_counter[emotion] * 100. / num_sentences)
+                            output_row = [scene_num]
+                            for emotion in emotion_order:
+                                output_row.append(emotion_counter[emotion] * 100. / num_sentences)
 
-                            writer.writerow(emotion_strengths)
+                            writer.writerow(output_row)
 
 if __name__ == '__main__':
     # Driver(emotions='core', use_external_sentiment=False).analyze()
