@@ -2,20 +2,21 @@ import math
 import sqlite3
 import string
 
+from collections import Counter
+import csv
+
+from format_data import core_emotions, all_emotions
+
 import nltk
 import numpy as np
 import scipy.sparse as sp
 from nltk.stem.porter import PorterStemmer
-from sklearn.model_selection import cross_val_score
-from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.externals import joblib
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import SGDClassifier
-from sklearn.metrics import classification_report
+from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import train_test_split
-from sklearn.multioutput import MultiOutputRegressor
 from textblob import TextBlob
-import csv
 
 stemmer = PorterStemmer()
 
@@ -112,36 +113,57 @@ class Driver:
         return pred
 
     def analyze_scripts(self, film_name=None):
-        def film_generator(results):
-            output = []
-            film_id = -1
-            for row in results:
-                if film_id == -1:
-                    film_id = row[0]
-                elif row[0] != film_id:
-                    yield output
-                    film_id = row[0]
-                    output = []
-                output.append(row)
-            yield output
 
+        if self.emotions == 'core':
+            emotion_headers = core_emotions
+        else:
+            emotion_headers = all_emotions
+
+        # NOTE: joins would probably be faster but a bit harder to parse afterwards
         with sqlite3.connect('movies.sqlite3') as conn:
             if film_name:
-                results = conn.execute("select film_id, film_name, scene_id, data from scene_view where film_name = ?", (film_name,))
+                film_rows = conn.execute("select id, name from films where film_name = ?", (film_name,))
             else:
-                results = conn.execute('select film_id, film_name, scene_id, data from scene_view')
+                film_rows = conn.execute('select id, name from films')
 
-            for scene_list in film_generator(results):
-                for row in scene_list:
-                    sentence = nltk.sent_tokenize(row[-1])
-                    pass
 
-            # pred = self.predict(text_data, print_predictions=True)
+            for film_row in film_rows:
+                film_id = film_row[0]
+                film_name = film_row[1]
+
+                filepath = '../film_sentiment_predictions/' + film_name + '.csv'
+
+                with open(filepath, 'wb') as csvfile:
+                    writer = csv.writer(csvfile, quotechar='|', quoting=csv.QUOTE_MINIMAL)
+                    writer.writerow(emotion_headers)
+
+                    scene_rows = conn.execute('select id from scenes where film_id = ? order by scene_num', (film_id,))
+                    for scene_row in scene_rows:
+                        scene_id = scene_row[0]
+                        sentence_rows = conn.execute('select data from sentences where scene_id = ? order by sentence_num',
+                                                     (scene_id,))
+
+                        num_sentences = 0
+                        emotion_counter = Counter()
+                        for sentence_row in sentence_rows:
+                            sentence = sentence_row[0]
+                            emotion = self.predict(sentence)[0]
+                            emotion_counter[emotion] += 1.0
+                            num_sentences += 1
+
+                        if num_sentences > 0:
+                            emotion_strengths = []
+                            for emotion in emotion_headers:
+                                emotion_strengths.append(emotion_counter[emotion] * 100. / num_sentences)
+
+                            writer.writerow(emotion_strengths)
 
 if __name__ == '__main__':
     # Driver(emotions='core', use_external_sentiment=False).analyze()
-    text_data = ['I am loving life today', 'I like you']
+    # text_data = ['I am loving life today', 'I like you']
     model = Driver(emotions='core', use_external_sentiment=False).fit()
-    # model.predict(text_data, print_predictions=True)
-    model.analyze_scripts()
 
+    joblib.dump(model, 'driver_model.pkl')
+    # model.predict(text_data, print_predictions=True)
+    # model = joblib.load('driver_model.pkl')
+    model.analyze_scripts()

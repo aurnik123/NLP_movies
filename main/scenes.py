@@ -8,6 +8,7 @@ conn = sqlite3.connect(database)
 
 
 def init_db():
+    # NOTE: scene_num and sentence_num both start at 1
     with conn:
         conn.executescript("""
         drop table if exists Films;
@@ -17,7 +18,7 @@ def init_db():
         );
         drop table if exists Scenes;
         create table Scenes  (
-            scene_id integer primary key autoincrement not null,
+            id integer primary key autoincrement not null,
             scene_num int not null,
             film_id int not null references Films(id)
         );
