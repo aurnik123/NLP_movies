@@ -34,93 +34,85 @@ def get_connection(emotions='all'):
 
 
 class Driver:
-    def __init__(self, method='classification', emotions='all', use_external_sentiment=False):
-        self.method = method
+    def __init__(self, emotions='all', use_external_sentiment=False):
         self.emotions = emotions
         self.conn = get_connection(emotions)
         self.data = self.get_data()
         self.use_external_sentiment = use_external_sentiment
-        self.model = None
+        # best so far: huber, log, epsilon_insensitive
+        # elasticnet
+        self.model = SGDClassifier(loss='hinge', penalty='l2', max_iter=100)
+        self.tfidf = TfidfVectorizer(tokenizer=tokenize, stop_words='english')
 
     def get_data(self):
         with self.conn as conn:
-            if self.method == 'regression':
-                results = conn.execute(
-                    'select data, anger, disgust, fear, joy, sadness, surprise from texts where origin_id = 3 and strength > 60')
-                text_data, y = [], []
-                for row in results:
-                    text_data.append(str(row[0]))
-                    y.append(row[1:])
-                return np.array(text_data), np.array(y)
-            else:
-                results = conn.execute(
-                    "select data, strongest_emotion from strongest_emotions where origin_id < 4 and strength > 50"
-                )
-                text_data, y = [], []
-                for row in results:
-                    text_data.append(str(row[0]))
-                    y.append(row[1])
-                return np.array(text_data), np.array(y)
+            results = conn.execute(
+                "select data, strongest_emotion from strongest_emotions where origin_id < 4 and strength > 50"
+            )
+            text_data, y = [], []
+            for row in results:
+                text_data.append(str(row[0]))
+                y.append(row[1])
+            return np.array(text_data), np.array(y)
 
-    def analyze(self):
-
+    def _get_processed_data(self):
         text_data, y = self.data
 
-        tfidf = TfidfVectorizer(tokenizer=tokenize, stop_words='english')
-
-        X = tfidf.fit_transform(text_data)
-        new_cols = sp.csr_matrix((X.shape[0], 2))
-        indices = np.arange(X.shape[0])
+        X = self.tfidf.fit_transform(text_data)
 
         # add sentiment and polarity from external library analysis
         if self.use_external_sentiment:
+            new_cols = sp.csr_matrix((X.shape[0], 2))
             for i, data in enumerate(text_data):
                 sentiment = TextBlob(data).sentiment
                 new_cols[i] = np.array(sentiment)
 
             X = sp.hstack((X, new_cols), format='csr')
+        return X, y
+
+    def analyze(self):
+        X, y = self._get_processed_data()
+
+        # used to match train-test split to original X, y
+        indices = np.arange(X.shape[0])
 
         X_train, X_test, y_train, y_test, idx_train, idx_test = train_test_split(X, y, indices, test_size=0.2)
 
-        if self.method == 'regression':
-            self.model = MultiOutputRegressor(RandomForestRegressor(n_estimators=100, min_samples_leaf=50))
-            self.model.fit(X=X_train, y=y_train)
-            joblib.dump(self.model, 'model.pkl')
+        # self.model = RandomForestClassifier(n_estimators=100)
+        self.model.fit(X=X_train, y=y_train)
 
-            # use to load trained model if good trained model is created
-            # model = joblib.load('model.pkl')
+        joblib.dump(self.model, 'model.pkl')
 
-            print(self.model.score(X_test, y_test))
+        # print(self.model.get_params)
+        #
+        # pred = self.model.predict(X_test)
+        # for i in xrange(X_test.shape[0]):
+        #     print(self.data[0][idx_test[i]], pred[i], y_test[i])
+        #
+        # print(classification_report(y_test, pred))
+        #
+        # print(self.model.score(X_test, y_test))
 
-            y_pred = self.model.predict(X_test)
-            print(calc_rmse(y_pred, y_test))
-        else:
-            # best so far: huber, log, epsilon_insensitive
-            # elasticnet
-            self.model = SGDClassifier(loss='hinge', penalty='l2', max_iter=100)
-            # self.model = RandomForestClassifier(n_estimators=100)
-            self.model.fit(X=X_train, y=y_train)
-
-            joblib.dump(self.model, 'model.pkl')
-
-            # print(self.model.get_params)
-            #
-            # pred = self.model.predict(X_test)
-            # for i in xrange(X_test.shape[0]):
-            #     print(self.data[0][idx_test[i]], pred[i], y_test[i])
-            #
-            # print(classification_report(y_test, pred))
-            #
-            # print(self.model.score(X_test, y_test))
-            print(cross_val_score(self.model, X, y, cv=5))
+        print(cross_val_score(self.model, X, y, cv=5))
 
     def fit(self):
-        text_data, y = self.data
+        X, y = self._get_processed_data()
+        self.model.fit(X, y)
+        return self
 
-        tfidf = TfidfVectorizer(tokenizer=tokenize, stop_words='english')
-
-        X = tfidf.fit_transform(text_data)
+    def predict(self, text_data, print_predictions=False):
+        if isinstance(text_data, str) or isinstance(text_data, unicode):
+            text_data = (text_data,)
+        X = self.tfidf.transform(text_data)
+        pred = self.model.predict(X)
+        if print_predictions:
+            for i in xrange(len(text_data)):
+                print(text_data[i], pred[i])
+        return pred
 
 
 if __name__ == '__main__':
-    Driver(method='classification', emotions='core', use_external_sentiment=False).analyze()
+    # Driver(emotions='core', use_external_sentiment=False).analyze()
+    X = ['I am loving life today', 'I like you']
+    Driver(emotions='core', use_external_sentiment=False).fit().predict(X, print_predictions=True)
+
