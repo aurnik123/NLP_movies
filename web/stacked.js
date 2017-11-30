@@ -12,7 +12,7 @@ function makeGraph(path){
   var stack = d3.stack();
   var sceneMax = 1;
   var area = d3.area()
-      .x(function(d, i) { return x((d.data.scene-1)/sceneMax); })
+      .x(function(d, i) { console.log((sceneMax));return x((d.data.scene-1)/sceneMax); })
       .y0(function(d) { return y(d[0]); })
       .y1(function(d) { return y(d[1]); });
 
@@ -71,7 +71,8 @@ function norm(d, i, columns) {
         }
       }
   }
+  d["scene"] = +d["scene"];
   return d;
 }
 //call makeGraph(csvfilepath) externally with whateever your formatted data values are
-makeGraph("data.csv");
+makeGraph("../film_sentiment_predictions/Catwoman.csv");
