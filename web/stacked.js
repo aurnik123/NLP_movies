@@ -1,14 +1,38 @@
+var svg = d3.select("svg"),
+    margin = {top: 20, right: 20, bottom: 20, left: 40},
+    width = svg.attr("width") - margin.left - margin.right,
+    height = svg.attr("height") - margin.top - margin.bottom;
+
+var x = d3.scaleLinear().range([0, width]),
+    y = d3.scaleLinear().range([height, 0]),
+    z = d3.scaleOrdinal(["#e41a1c","#4daf4a","#984ea3","#ffff33","#377eb8","#ff7f00","white"]);
+
+var ds0 = [];
+var ds1 = "../film_sentiment_predictions/Avatar.csv";
+var ds2 = "../film_sentiment_predictions/Spider-Man.csv";
+var ds3 = "../film_sentiment_predictions/Pirates-of-the-Caribbean.csv";
+var ds4 = "../film_sentiment_predictions/Frozen.csv";
+var ds5 = "../film_sentiment_predictions/Star-Wars-Revenge-of-the-Si.csv";
+var ds6 = "../film_sentiment_predictions/Star-Wars-The-Force-Awakens.csv";
+var ds7 = "../film_sentiment_predictions/Lord-of-the-Rings-Return-of-the-King.csv";
+var ds8 = "../film_sentiment_predictions/Mission-Impossible.csv";
+var ds9 = "../film_sentiment_predictions/Shrek-the-Third.csv";
+var ds10 = [];
+var ds11 = "../film_sentiment_predictions/Boyhood.csv";
+var ds12 = "../film_sentiment_predictions/Lost-in-Translation.csv";
+var ds13 = "../film_sentiment_predictions/12-Years-a-Slave.csv";
+var ds14 = "../film_sentiment_predictions/Social-Network,-The.csv";
+var ds15 = "../film_sentiment_predictions/Zero-Dark-Thirty.csv";
+var ds16 = "../film_sentiment_predictions/Wall-E.csv";
+var ds17 = "../film_sentiment_predictions/Sideways.csv";
+var ds18 = "../film_sentiment_predictions/Amour.csv";
+var ds19 = "../film_sentiment_predictions/Crouching-Tiger,-Hidden-Dragon.csv";
+var ds20 = "../film_sentiment_predictions/Hudson-Hawk.csv";
+var ds21 = "../film_sentiment_predictions/Catwoman.csv";
+
+
 //NEEDS A CSV WITH SCENES IN ORDER, scene as first column
 function makeGraph(path){
-  var svg = d3.select("svg"),
-      margin = {top: 20, right: 20, bottom: 20, left: 40},
-      width = svg.attr("width") - margin.left - margin.right,
-      height = svg.attr("height") - margin.top - margin.bottom;
-
-  var x = d3.scaleLinear().range([0, width]),
-      y = d3.scaleLinear().range([height, 0]),
-      z = d3.scaleOrdinal(["#e41a1c","#4daf4a","#984ea3","#ffff33","#377eb8","#ff7f00","white"]);
-
   var stack = d3.stack();
   var sceneMax = 1;
   var area = d3.area()
@@ -37,15 +61,6 @@ function makeGraph(path){
           .attr("class", "area")
           .style("fill", function(d) { return z(d.key); })
           .attr("d", area);
-
-      /*layer.filter(function(d) { return d[d.length - 1][1] - d[d.length - 1][0] > 0.01; })
-        .append("text")
-          .attr("x", width - 6)
-          .attr("y", function(d) { return y((d[d.length - 1][0] + d[d.length - 1][1]) / 2); })
-          .attr("dy", ".35em")
-          .style("font", "10px sans-serif")
-          .style("text-anchor", "end")
-          .text(function(d) { return d.key; });*/
 
       g.append("g")
           .attr("class", "axis axis--x")
@@ -76,4 +91,11 @@ function norm(d, i, columns) {
   return d;
 }
 //call makeGraph(csvfilepath) externally with whateever your formatted data values are
-makeGraph("../film_sentiment_predictions/Boyhood.csv");
+makeGraph("../film_sentiment_predictions/Avatar.csv");
+
+// handle on click event
+d3.select('#opts')
+  .on('change', function() {
+    var newData = eval(d3.select(this).property('value'));
+    makeGraph(newData);
+});
