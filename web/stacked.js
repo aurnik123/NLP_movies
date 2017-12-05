@@ -43,6 +43,9 @@ function makeGraph(path){
   var g = svg.append("g")
       .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
+  var div = d3.select("body").append("div")
+      .attr("class", "tooltip")
+
     d3.csv(path, norm, function(error, data) {
       if (error) throw error;
       var keys = data.columns.slice(1);
@@ -55,7 +58,21 @@ function makeGraph(path){
       var layer = g.selectAll(".layer")
         .data(stack(data))
         .enter().append("g")
-          .attr("class", "layer");
+        .attr("class", "layer")
+        .on("mouseover", function(d,i) {
+          console.log([d[i].data["anger"],d[i].data["disgust"],]);
+					div.transition()
+							.duration(0)
+							.style("opacity", 1)
+					div.html([d[i].data["anger"],d[i].data["disgust"],])
+          .style("left", (d3.event.pageX) + "px")
+          .style("top", (d3.event.pageY) + "px")
+				})
+				.on("mouseout", function(d) {
+						div.transition()
+								.duration(0)
+								.style("opacity", 0)
+				});
 
       layer.append("path")
           .attr("class", "area")
@@ -70,6 +87,8 @@ function makeGraph(path){
       g.append("g")
           .attr("class", "axis axis--y")
           .call(d3.axisLeft(y).ticks(10, "%"));
+
+
     });
 }
 
