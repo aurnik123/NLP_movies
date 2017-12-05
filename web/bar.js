@@ -46,7 +46,7 @@ var y = d3.scaleLinear()
 
     g.append("g")
         .attr("class", "yaxis")
-        .call(d3.axisLeft(y).ticks(null, "s"));
+        .call(d3.axisLeft(y).ticks(10, "%"));
 
 
 function makeGraph(path){
@@ -89,12 +89,18 @@ function makeGraph(path){
         }
          t-= newData[bar].p;
         newData[bar].total = t;
+        for (val in newData[bar]) {
+          if(val != "p"){
+            newData[bar][val] /= t ;
+          }
+        }
+
       }
       //console.log(newData);
 
 
       x.domain(newData.map(function(d) { return d.p; }));
-      y.domain([0, d3.max(newData, function(d) { return d.total; })]).nice();
+      y.domain([0, d3.max(newData, function(d) { return d.total; })/2]).nice();
       z.domain(keys);
 
       g.append("g")
@@ -135,7 +141,7 @@ function makeGraph(path){
 
 
         svg.selectAll(".yaxis")
-        .call(d3.axisLeft(y).ticks(null, "s"));
+        .call(d3.axisLeft(y).ticks(10, "%"));
 
         svg.selectAll(".xaxis")
         .call(d3.axisBottom(x));
