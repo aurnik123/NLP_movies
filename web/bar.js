@@ -1,5 +1,5 @@
     var svg = d3.select("svg"),
-        margin = {top: 20, right: 20, bottom: 50, left: 90},
+        margin = {top: 20, right: 90, bottom: 50, left: 90},
         width = svg.attr("width") - margin.left - margin.right,
         height = svg.attr("height") - margin.top - margin.bottom
         g = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
@@ -52,7 +52,7 @@ var y = d3.scaleLinear()
 
 
 var keys = ["anger","disgust","fear","joy","sadness","surprise","neutral"];
-
+var gran = 20;
 function readCSV(filename,callback){
   d3.csv(filename, function(d, i, columns) {
     for (i = 1, t = 0; i < columns.length; ++i) t += d[columns[i]] = +d[columns[i]];
@@ -67,7 +67,7 @@ function readCSV(filename,callback){
     //var keys = data.columns.slice(1);
     sceneMax = d3.max(data, function(d) { return d.scene; })
     for (var point in data){
-        percentile = Math.ceil(10*data[point].scene/sceneMax)*10;
+        percentile = Math.ceil(gran*data[point].scene/sceneMax)*(100/gran);
         if(!o[percentile]){o[percentile] = {"p":percentile};};
         for (var prop in data[point]) {
             if (/anger|disgust|sadness|surprise|fear|joy|neutral/.test(prop) ) {
@@ -149,14 +149,14 @@ function makeGraph(path){
         .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; });
 
     legend.append("rect")
-        .attr("x", width - 19)
+        .attr("x", width+ margin.left -19)
         .attr("width", 19)
         .attr("height", 19)
         .attr("fill", z)
          .style("stroke", "black");
 
     legend.append("text")
-        .attr("x", width - 24)
+        .attr("x", width + margin.left - 24)
         .attr("y", 9.5)
         .attr("dy", "0.32em")
         .text(function(d) { return d; });
@@ -172,7 +172,7 @@ function makeGraph(path){
       .text("Percent Through Movie By Scene");
 
       svg.selectAll(".xaxis")
-      .call(d3.axisBottom(x).tickFormat(function(d) {return ""+d-10+"-"+d + "%"; }));
+      .call(d3.axisBottom(x).tickFormat(function(d) {return ""+d-(100/gran)+"-"+d + "%"; }));
 
 
       svg.append("text")
