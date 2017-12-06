@@ -1,11 +1,11 @@
     var svg = d3.select("svg"),
-        margin = {top: 20, right: 20, bottom: 20, left: 40},
+        margin = {top: 20, right: 20, bottom: 50, left: 90},
         width = svg.attr("width") - margin.left - margin.right,
         height = svg.attr("height") - margin.top - margin.bottom
         g = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
 
-    var         z = d3.scaleOrdinal(["#e41a1c","#4daf4a","#984ea3","#ffff33","#377eb8","#ff7f00","white"]);
+    var z = d3.scaleOrdinal(["#e41a1c","#4daf4a","#984ea3","#ffff33","#377eb8","#ff7f00","white"]);
 
     var ds0 = "grossing";
     var ds1 = "../film_sentiment_predictions/Avatar.csv";
@@ -42,7 +42,7 @@ var y = d3.scaleLinear()
     g.append("g")
         .attr("class", "xaxis")
         .attr("transform", "translate(0," + height + ")")
-        .call(d3.axisBottom(x));
+        .call(d3.axisBottom(x).tickFormat(function(d) {return d + "%"; }));
 
     g.append("g")
         .attr("class", "yaxis")
@@ -152,7 +152,8 @@ function makeGraph(path){
         .attr("x", width - 19)
         .attr("width", 19)
         .attr("height", 19)
-        .attr("fill", z);
+        .attr("fill", z)
+         .style("stroke", "black");
 
     legend.append("text")
         .attr("x", width - 24)
@@ -163,8 +164,24 @@ function makeGraph(path){
       svg.selectAll(".yaxis")
       .call(d3.axisLeft(y).ticks(10, "%"));
 
+      svg.append("text")
+      .attr("transform",
+            "translate(" + (width/2 + margin.left) + " ," +
+                           (height + margin.top + 35) + ")")
+      .style("text-anchor", "middle")
+      .text("Percent Through Movie By Scene");
+
       svg.selectAll(".xaxis")
-      .call(d3.axisBottom(x));
+      .call(d3.axisBottom(x).tickFormat(function(d) {return ""+d-10+"-"+d + "%"; }));
+
+
+      svg.append("text")
+      .attr("transform", "rotate(-90)")
+      .attr("y", 0+margin.left/3)
+      .attr("x",0 -(height / 2))
+      .attr("dy", "1em")
+      .style("text-anchor", "middle")
+      .text("Percent of Scenes Displaying Emotion");
 
 
   });
