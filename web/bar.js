@@ -1,49 +1,52 @@
-    var svg = d3.select("svg"),
-        margin = {top: 20, right: 90, bottom: 50, left: 90},
-        width = svg.attr("width") - margin.left - margin.right,
-        height = svg.attr("height") - margin.top - margin.bottom
-        g = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+var gran = 20;
+var zoom = 0.45;
 
-    svg.append("text")
-    .attr("transform", "rotate(-90)")
-    .attr("y", 0+margin.left/3)
-    .attr("x",0 -(height / 2))
-    .attr("dy", "1em")
-    .style("text-anchor", "middle")
-    .text("Percent of Scenes Displaying Emotion");
+var svg = d3.select("svg"),
+    margin = {top: 20, right: 90, bottom: 50, left: 90},
+    width = svg.attr("width") - margin.left - margin.right,
+    height = svg.attr("height") - margin.top - margin.bottom
+    g = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-    svg.append("text")
-    .attr("transform",
-          "translate(" + (width/2 + margin.left) + " ," +
-                         (height + margin.top + 35) + ")")
-    .style("text-anchor", "middle")
-    .text("Percent Through Movie By Scene");
+svg.append("text")
+.attr("transform", "rotate(-90)")
+.attr("y", 0+margin.left/3)
+.attr("x",0 -(height / 2))
+.attr("dy", "1em")
+.style("text-anchor", "middle")
+.text("Percent of Scenes Displaying Emotion");
+
+svg.append("text")
+.attr("transform",
+      "translate(" + (width/2 + margin.left) + " ," +
+                     (height + margin.top + 35) + ")")
+.style("text-anchor", "middle")
+.text("Percent Through Movie By Scene");
 
 
-    var z = d3.scaleOrdinal(["#e41a1c","#4daf4a","#984ea3","#ffff33","#377eb8","#ff7f00","white"]);
+var z = d3.scaleOrdinal(["#e41a1c","#4daf4a","#984ea3","#ffff33","#377eb8","#ff7f00","white"]);
 
-    var ds0 = "grossing";
-    var ds1 = "../film_sentiment_predictions/Avatar.csv";
-    var ds2 = "../film_sentiment_predictions/Spider-Man.csv";
-    var ds3 = "../film_sentiment_predictions/Pirates-of-the-Caribbean.csv";
-    var ds4 = "../film_sentiment_predictions/Frozen.csv";
-    var ds5 = "../film_sentiment_predictions/Star-Wars-Revenge-of-the-Si.csv";
-    var ds6 = "../film_sentiment_predictions/Star-Wars-The-Force-Awakens.csv";
-    var ds7 = "../film_sentiment_predictions/Lord-of-the-Rings-Return-of-the-King.csv";
-    var ds8 = "../film_sentiment_predictions/Mission-Impossible.csv";
-    var ds9 = "../film_sentiment_predictions/Shrek-the-Third.csv";
-    var ds10 = "rated";
-    var ds11 = "../film_sentiment_predictions/Boyhood.csv";
-    var ds12 = "../film_sentiment_predictions/Lost-in-Translation.csv";
-    var ds13 = "../film_sentiment_predictions/12-Years-a-Slave.csv";
-    var ds14 = "../film_sentiment_predictions/Social-Network,-The.csv";
-    var ds15 = "../film_sentiment_predictions/Zero-Dark-Thirty.csv";
-    var ds16 = "../film_sentiment_predictions/Wall-E.csv";
-    var ds17 = "../film_sentiment_predictions/Sideways.csv";
-    var ds18 = "../film_sentiment_predictions/Amour.csv";
-    var ds19 = "../film_sentiment_predictions/Crouching-Tiger,-Hidden-Dragon.csv";
-    var ds20 = "../film_sentiment_predictions/Hudson-Hawk.csv";
-    var ds21 = "../film_sentiment_predictions/Catwoman.csv";
+var ds0 = "grossing";
+var ds1 = "../film_sentiment_predictions/Avatar.csv";
+var ds2 = "../film_sentiment_predictions/Spider-Man.csv";
+var ds3 = "../film_sentiment_predictions/Pirates-of-the-Caribbean.csv";
+var ds4 = "../film_sentiment_predictions/Frozen.csv";
+var ds5 = "../film_sentiment_predictions/Star-Wars-Revenge-of-the-Si.csv";
+var ds6 = "../film_sentiment_predictions/Star-Wars-The-Force-Awakens.csv";
+var ds7 = "../film_sentiment_predictions/Lord-of-the-Rings-Return-of-the-King.csv";
+var ds8 = "../film_sentiment_predictions/Mission-Impossible.csv";
+var ds9 = "../film_sentiment_predictions/Shrek-the-Third.csv";
+var ds10 = "rated";
+var ds11 = "../film_sentiment_predictions/Boyhood.csv";
+var ds12 = "../film_sentiment_predictions/Lost-in-Translation.csv";
+var ds13 = "../film_sentiment_predictions/12-Years-a-Slave.csv";
+var ds14 = "../film_sentiment_predictions/Social-Network,-The.csv";
+var ds15 = "../film_sentiment_predictions/Zero-Dark-Thirty.csv";
+var ds16 = "../film_sentiment_predictions/Wall-E.csv";
+var ds17 = "../film_sentiment_predictions/Sideways.csv";
+var ds18 = "../film_sentiment_predictions/Amour.csv";
+var ds19 = "../film_sentiment_predictions/Crouching-Tiger,-Hidden-Dragon.csv";
+var ds20 = "../film_sentiment_predictions/Hudson-Hawk.csv";
+var ds21 = "../film_sentiment_predictions/Catwoman.csv";
 
 
 var x = d3.scaleBand()
@@ -90,7 +93,6 @@ legend.append("text")
     .attr("dy", "0.32em")
     .text(function(d) { return d; });
 
-var gran = 20;
 
 function readCSV(filename,callback){
   d3.csv(filename, function(d, i, columns) {
@@ -161,7 +163,7 @@ function makeGraph(path){
 
 
     x.domain(newData.map(function(d) { return d.p; }));
-    y.domain([0, d3.max(newData, function(d) { return d.total; })*0.45]).nice();
+    y.domain([0, d3.max(newData, function(d) { return d.total; })*zoom]).nice();
     z.domain(keys);
 
     g.append("g")
@@ -176,7 +178,7 @@ function makeGraph(path){
         .attr("y", function(d) { return y(d[1]); })
         .attr("height", function(d) { return y(d[0]) - y(d[1]); })
         .attr("width", x.bandwidth())
-        //.style("stroke", function(d){if(d.data)})
+        .style("stroke", "black")
         ;
 
 
