@@ -1,5 +1,4 @@
 var gran = 20;
-var zoom = 0.50;
 var barPad = 0.05;
 
 var svg = d3.select("svg"),
@@ -164,7 +163,7 @@ function makeGraph(path){
 
 
     x.domain(newData.map(function(d) { return d.p; }));
-    y.domain([0, d3.max(newData, function(d) { return  d.total; })*zoom]).nice();
+    y.domain([0, d3.max(newData, function(d) { return  d.anger +d.sadness + d.surprise +d.joy+d.disgust+d.fear; })]).nice();
     z.domain(keys);
 
     g.append("g")
