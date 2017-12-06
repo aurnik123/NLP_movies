@@ -32,7 +32,7 @@ def init_db():
         """)
 
 
-def process_and_load_scene(scene, film_id, scene_num):
+def process_scene(scene):
     scene = re.sub('\n\s*[A-Z0-9()][^a-z]*[A-Z0-9():]+.?\s*\n', ' ',
                    scene)  # deal with scene numbers and camera direction
     scene = re.sub('[A-Z]?[0-9][^a-z\s]*', ' ', scene)
@@ -42,6 +42,11 @@ def process_and_load_scene(scene, film_id, scene_num):
     scene = re.sub("\s\s+", " ", scene)  # remove double spaces
 
     sentences = nltk.sent_tokenize(scene)
+    return sentences
+
+
+def process_and_load_scene(scene, film_id, scene_num):
+    sentences = process_scene(scene)
 
     conn.execute("""insert into Scenes (film_id, scene_num) values (?, ?)""", (film_id, scene_num))
     scene_id = conn.execute('select last_insert_rowid()').fetchone()[0]
@@ -51,37 +56,38 @@ def process_and_load_scene(scene, film_id, scene_num):
                      ((i + 1, sentence) for (i, sentence) in enumerate(sentences)))
 
 
-# filepath is name of txt file in scripts folder (eg 8MM.txt)
-def load_script(filepath):
-    with conn:
-        # count = 0
-        script = open("../scripts/" + filepath, "r")
-        film_name = filepath.split('.')[0]
+def process_script(script_file):
+    scene = ''
+    for line in script_file.readlines():
+        if any(substr in line for substr in ('EXT.', 'INT.', 'EXT:', 'INT:')):
+            if scene != '':
+                yield scene
+            scene = ''
+        else:
+            line = re.sub('[^\x00-\x7F]', ' ', line)  # remove non ascii
+            line = re.sub("[\t]", "", line)  # remove tabs
+            line = re.sub('-[0-9A-Z].*[0-9A-Z]-', ' ', line)
 
-        conn.execute('insert into Films (name) values (?)', (film_name,))
-        film_id = conn.execute('select last_insert_rowid()').fetchone()[0]
+            scene = scene + line
 
-        scene_num = 0
-        scene = ''
-        for line in script.readlines():
-            if any(substr in line for substr in ('EXT.', 'INT.', 'EXT:', 'INT:')):
-                if scene_num != 0:
-                    process_and_load_scene(scene, film_id, scene_num)
-                scene_num += 1
-                scene = ''
-            else:
-                line = re.sub('[^\x00-\x7F]', ' ', line)  # remove non ascii
-                line = re.sub("[\t]", "", line)  # remove tabs
-                line = re.sub('-[0-9A-Z].*[0-9A-Z]-', ' ', line)
+    # remove text after and including "the end"
+    scene = re.sub('\n\s*([tT][Hh][Ee]\s[Ee][Nn][Dd])(.|\n)*', ' ', scene)
+    yield scene
 
-                scene = scene + line
 
-        # remove text after and including "the end"
-        scene = re.sub('\n\s*([tT][Hh][Ee]\s[Ee][Nn][Dd])(.|\n)*', ' ', scene)
+def load_script_by_file(script_file, film_name):
+    conn.execute('insert into Films (name) values (?)', (film_name,))
+    film_id = conn.execute('select last_insert_rowid()').fetchone()[0]
+
+    for scene_num, scene in enumerate(process_script(script_file)):
         process_and_load_scene(scene, film_id, scene_num)
 
-        # count += 1
-        # print("count: " + str(count))
+
+def load_script(filename):
+    with conn:
+        filepath = '../scripts/' + filename
+        with open(filepath, "r") as f:
+            load_script_by_file(f, filename.split('.')[0])
 
 
 if __name__ == '__main__':
