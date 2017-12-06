@@ -48,7 +48,7 @@
 
 var x = d3.scaleBand()
     .rangeRound([0, width])
-    .paddingInner(0.05)
+    .paddingInner(0.00)
     .align(0.1);
 
 var y = d3.scaleLinear()
@@ -175,7 +175,10 @@ function makeGraph(path){
         .attr("x", function(d) { return x(d.data.p); })
         .attr("y", function(d) { return y(d[1]); })
         .attr("height", function(d) { return y(d[0]) - y(d[1]); })
-        .attr("width", x.bandwidth());
+        .attr("width", x.bandwidth())
+        //.style("stroke", function(d){if(d.data)})
+        ;
+
 
 
       svg.selectAll(".yaxis")
