@@ -51,7 +51,7 @@ var ds21 = "../film_sentiment_predictions/Catwoman.csv";
 
 var x = d3.scaleBand()
     .rangeRound([0, width])
-    .paddingInner(0.00)
+    .paddingInner(0.05)
     .align(0.1);
 
 var y = d3.scaleLinear()
@@ -76,7 +76,7 @@ var legend = g.append("g")
     .attr("font-size", 10)
     .attr("text-anchor", "end")
   .selectAll("g")
-  .data(keys.slice().reverse())
+  .data(keys)
   .enter().append("g")
     .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; });
 
@@ -178,7 +178,7 @@ function makeGraph(path){
         .attr("y", function(d) { return y(d[1]); })
         .attr("height", function(d) { return y(d[0]) - y(d[1]); })
         .attr("width", x.bandwidth())
-        .style("stroke", "black")
+        //.style("stroke", "black")
         ;
 
 
