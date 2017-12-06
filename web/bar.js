@@ -1,5 +1,6 @@
 var gran = 20;
-var zoom = 0.45;
+var zoom = 0.50;
+var barPad = 0.05;
 
 var svg = d3.select("svg"),
     margin = {top: 20, right: 90, bottom: 50, left: 90},
@@ -51,7 +52,7 @@ var ds21 = "../film_sentiment_predictions/Catwoman.csv";
 
 var x = d3.scaleBand()
     .rangeRound([0, width])
-    .paddingInner(0.05)
+    .paddingInner(barPad)
     .align(0.1);
 
 var y = d3.scaleLinear()
@@ -163,7 +164,7 @@ function makeGraph(path){
 
 
     x.domain(newData.map(function(d) { return d.p; }));
-    y.domain([0, d3.max(newData, function(d) { return d.total; })*zoom]).nice();
+    y.domain([0, d3.max(newData, function(d) { return  d.total; })*zoom]).nice();
     z.domain(keys);
 
     g.append("g")
