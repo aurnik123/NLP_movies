@@ -7,7 +7,7 @@ var x = d3.scaleLinear().range([0, width]),
     y = d3.scaleLinear().range([height, 0]),
     z = d3.scaleOrdinal(["#e41a1c","#4daf4a","#984ea3","#ffff33","#377eb8","#ff7f00","white"]);
 
-var ds0 = [];
+var ds0 = "grossing";
 var ds1 = "../film_sentiment_predictions/Avatar.csv";
 var ds2 = "../film_sentiment_predictions/Spider-Man.csv";
 var ds3 = "../film_sentiment_predictions/Pirates-of-the-Caribbean.csv";
@@ -17,7 +17,7 @@ var ds6 = "../film_sentiment_predictions/Star-Wars-The-Force-Awakens.csv";
 var ds7 = "../film_sentiment_predictions/Lord-of-the-Rings-Return-of-the-King.csv";
 var ds8 = "../film_sentiment_predictions/Mission-Impossible.csv";
 var ds9 = "../film_sentiment_predictions/Shrek-the-Third.csv";
-var ds10 = [];
+var ds10 = "rated";
 var ds11 = "../film_sentiment_predictions/Boyhood.csv";
 var ds12 = "../film_sentiment_predictions/Lost-in-Translation.csv";
 var ds13 = "../film_sentiment_predictions/12-Years-a-Slave.csv";
