@@ -4,6 +4,21 @@
         height = svg.attr("height") - margin.top - margin.bottom
         g = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
+    svg.append("text")
+    .attr("transform", "rotate(-90)")
+    .attr("y", 0+margin.left/3)
+    .attr("x",0 -(height / 2))
+    .attr("dy", "1em")
+    .style("text-anchor", "middle")
+    .text("Percent of Scenes Displaying Emotion");
+
+    svg.append("text")
+    .attr("transform",
+          "translate(" + (width/2 + margin.left) + " ," +
+                         (height + margin.top + 35) + ")")
+    .style("text-anchor", "middle")
+    .text("Percent Through Movie By Scene");
+
 
     var z = d3.scaleOrdinal(["#e41a1c","#4daf4a","#984ea3","#ffff33","#377eb8","#ff7f00","white"]);
 
@@ -52,7 +67,31 @@ var y = d3.scaleLinear()
 
 
 var keys = ["anger","disgust","fear","joy","sadness","surprise","neutral"];
+
+var legend = g.append("g")
+    .attr("font-family", "sans-serif")
+    .attr("font-size", 10)
+    .attr("text-anchor", "end")
+  .selectAll("g")
+  .data(keys.slice().reverse())
+  .enter().append("g")
+    .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; });
+
+legend.append("rect")
+    .attr("x", width+ margin.left -19)
+    .attr("width", 19)
+    .attr("height", 19)
+    .attr("fill", z)
+     .style("stroke", "black");
+
+legend.append("text")
+    .attr("x", width + margin.left - 24)
+    .attr("y", 9.5)
+    .attr("dy", "0.32em")
+    .text(function(d) { return d; });
+
 var gran = 20;
+
 function readCSV(filename,callback){
   d3.csv(filename, function(d, i, columns) {
     for (i = 1, t = 0; i < columns.length; ++i) t += d[columns[i]] = +d[columns[i]];
@@ -139,50 +178,11 @@ function makeGraph(path){
         .attr("width", x.bandwidth());
 
 
-    var legend = g.append("g")
-        .attr("font-family", "sans-serif")
-        .attr("font-size", 10)
-        .attr("text-anchor", "end")
-      .selectAll("g")
-      .data(keys.slice().reverse())
-      .enter().append("g")
-        .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; });
-
-    legend.append("rect")
-        .attr("x", width+ margin.left -19)
-        .attr("width", 19)
-        .attr("height", 19)
-        .attr("fill", z)
-         .style("stroke", "black");
-
-    legend.append("text")
-        .attr("x", width + margin.left - 24)
-        .attr("y", 9.5)
-        .attr("dy", "0.32em")
-        .text(function(d) { return d; });
-
       svg.selectAll(".yaxis")
       .call(d3.axisLeft(y).ticks(10, "%"));
 
-      svg.append("text")
-      .attr("transform",
-            "translate(" + (width/2 + margin.left) + " ," +
-                           (height + margin.top + 35) + ")")
-      .style("text-anchor", "middle")
-      .text("Percent Through Movie By Scene");
-
       svg.selectAll(".xaxis")
       .call(d3.axisBottom(x).tickFormat(function(d) {return ""+d-(100/gran)+"-"+d + "%"; }));
-
-
-      svg.append("text")
-      .attr("transform", "rotate(-90)")
-      .attr("y", 0+margin.left/3)
-      .attr("x",0 -(height / 2))
-      .attr("dy", "1em")
-      .style("text-anchor", "middle")
-      .text("Percent of Scenes Displaying Emotion");
-
 
   });
 
